@@ -1,0 +1,3 @@
+[submodule "RevitMCPSDK"]
+	path = RevitMCPSDK
+	url = https://github.com/trgiangv/RevitMCPSDK

@@ -29,7 +29,7 @@ public class CommandConfig
     /// Supported Revit versions
     /// </summary>
     [JsonProperty("supportedRevitVersions")]
-    public string[] SupportedRevitVersions { get; set; } = new string[0];
+    public string[] SupportedRevitVersions { get; set; } = [];
 
     /// <summary>
     /// Developer information
