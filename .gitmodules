@@ -4,3 +4,6 @@
 [submodule "revit-mcp"]
 	path = revit-mcp
 	url = https://github.com/trgiangv/revit-mcp.git
+[submodule "revit-mcp-commandset"]
+	path = revit-mcp-commandset
+	url = https://github.com/trgiangv/revit-mcp-commandset.git
