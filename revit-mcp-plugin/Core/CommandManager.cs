@@ -4,167 +4,161 @@ using RevitMCPSDK.API.Utils;
 using revit_mcp_plugin.Configuration;
 using revit_mcp_plugin.Utils;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace revit_mcp_plugin.Core
+namespace revit_mcp_plugin.Core;
+
+/// <summary>
+/// Command Manager, responsible for loading and managing commands
+/// </summary>
+public class CommandManager
 {
-    /// <summary>
-    /// 命令管理器，负责加载和管理命令
-    /// </summary>
-    public class CommandManager
+    private readonly ICommandRegistry _commandRegistry;
+    private readonly ILogger _logger;
+    private readonly ConfigurationManager _configManager;
+    private readonly UIApplication _uiApplication;
+    private readonly RevitVersionAdapter _versionAdapter;
+
+    public CommandManager(
+        ICommandRegistry commandRegistry,
+        ILogger logger,
+        ConfigurationManager configManager,
+        UIApplication uiApplication)
     {
-        private readonly ICommandRegistry _commandRegistry;
-        private readonly ILogger _logger;
-        private readonly ConfigurationManager _configManager;
-        private readonly UIApplication _uiApplication;
-        private readonly RevitVersionAdapter _versionAdapter;
+        _commandRegistry = commandRegistry;
+        _logger = logger;
+        _configManager = configManager;
+        _uiApplication = uiApplication;
+        _versionAdapter = new RevitVersionAdapter(_uiApplication.Application);
+    }
 
-        public CommandManager(
-            ICommandRegistry commandRegistry,
-            ILogger logger,
-            ConfigurationManager configManager,
-            UIApplication uiApplication)
-        {
-            _commandRegistry = commandRegistry;
-            _logger = logger;
-            _configManager = configManager;
-            _uiApplication = uiApplication;
-            _versionAdapter = new RevitVersionAdapter(_uiApplication.Application);
-        }
+    /// <summary>
+    /// Load all commands specified in the configuration file
+    /// </summary>
+    public void LoadCommands()
+    {
+        _logger.Info("Start loading command");
+        var currentVersion = _versionAdapter.GetRevitVersion();
+        _logger.Info("Current Revit version: {0}", currentVersion);
 
-        /// <summary>
-        /// 加载配置文件中指定的所有命令
-        /// </summary>
-        public void LoadCommands()
-        {
-            _logger.Info("开始加载命令");
-            string currentVersion = _versionAdapter.GetRevitVersion();
-            _logger.Info("当前 Revit 版本: {0}", currentVersion);
-
-            // 从配置加载外部命令
-            foreach (var commandConfig in _configManager.Config.Commands)
-            {
-                try
-                {
-                    if (!commandConfig.Enabled)
-                    {
-                        _logger.Info("跳过禁用的命令: {0}", commandConfig.CommandName);
-                        continue;
-                    }
-
-                    // 检查版本兼容性
-                    if (commandConfig.SupportedRevitVersions != null &&
-                        commandConfig.SupportedRevitVersions.Length > 0 &&
-                        !_versionAdapter.IsVersionSupported(commandConfig.SupportedRevitVersions))
-                    {
-                        _logger.Warning("命令 {0} 不支持当前 Revit 版本 {1}，已跳过",
-                            commandConfig.CommandName, currentVersion);
-                        continue;
-                    }
-
-                    // 替换路径中的版本占位符
-                    commandConfig.AssemblyPath = commandConfig.AssemblyPath.Contains("{VERSION}")
-                        ? commandConfig.AssemblyPath.Replace("{VERSION}", currentVersion)
-                        : commandConfig.AssemblyPath;
-
-                    // 加载外部命令程序集
-                    LoadCommandFromAssembly(commandConfig);
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error("加载命令 {0} 失败: {1}", commandConfig.CommandName, ex.Message);
-                }
-            }
-
-            _logger.Info("命令加载完成");
-        }
-
-        /// <summary>
-        /// 加载特定程序集中的特定命令
-        /// </summary>
-        /// <param name="commandName">命令名称</param>
-        /// <param name="assemblyPath">程序集路径</param>
-        private void LoadCommandFromAssembly(CommandConfig config)
+        // Load external commands from configuration
+        foreach (var commandConfig in _configManager.Config.Commands)
         {
             try
             {
-                // 确定程序集路径
-                string assemblyPath = config.AssemblyPath;
-                if (!Path.IsPathRooted(assemblyPath))
+                if (!commandConfig.Enabled)
                 {
-                    // 如果不是绝对路径，则相对于Commands目录
-                    string baseDir = PathManager.GetCommandsDirectoryPath();
-                    assemblyPath = Path.Combine(baseDir, assemblyPath);
+                    _logger.Info("Skip the disabled command: {0}", commandConfig.CommandName);
+                    continue;
                 }
 
-                if (!File.Exists(assemblyPath))
+                // Check version compatibility
+                if (commandConfig.SupportedRevitVersions != null &&
+                    commandConfig.SupportedRevitVersions.Length > 0 &&
+                    !_versionAdapter.IsVersionSupported(commandConfig.SupportedRevitVersions))
                 {
-                    _logger.Error("命令程序集不存在: {0}", assemblyPath);
-                    return;
+                    _logger.Warning("命令 {0} 不支持当前 Revit 版本 {1}，已跳过",
+                        commandConfig.CommandName, currentVersion);
+                    continue;
                 }
 
-                // 加载程序集
-                Assembly assembly = Assembly.LoadFrom(assemblyPath);
+                // Replace version placeholders in paths
+                commandConfig.AssemblyPath = commandConfig.AssemblyPath.Contains("{VERSION}")
+                    ? commandConfig.AssemblyPath.Replace("{VERSION}", currentVersion)
+                    : commandConfig.AssemblyPath;
 
-                // 查找实现 IRevitCommand 接口的类型
-                foreach (Type type in assembly.GetTypes())
-                {
-                    if (typeof(RevitMCPSDK.API.Interfaces.IRevitCommand).IsAssignableFrom(type) &&
-                        !type.IsInterface &&
-                        !type.IsAbstract)
-                    {
-                        try
-                        {
-                            // 创建命令实例
-                            RevitMCPSDK.API.Interfaces.IRevitCommand command;
-
-                            // 检查命令是否实现了可初始化接口
-                            if (typeof(IRevitCommandInitializable).IsAssignableFrom(type))
-                            {
-                                // 创建实例并初始化
-                                command = (IRevitCommand)Activator.CreateInstance(type);
-                                ((IRevitCommandInitializable)command).Initialize(_uiApplication);
-                            }
-                            else
-                            {
-                                // 尝试查找接受 UIApplication 的构造函数
-                                var constructor = type.GetConstructor(new[] { typeof(UIApplication) });
-                                if (constructor != null)
-                                {
-                                    command = (IRevitCommand)constructor.Invoke(new object[] { _uiApplication });
-                                }
-                                else
-                                {
-                                    // 使用无参构造函数
-                                    command = (IRevitCommand)Activator.CreateInstance(type);
-                                }
-                            }
-
-                            // 检查命令名称是否与配置匹配
-                            if (command.CommandName == config.CommandName)
-                            {
-                                _commandRegistry.RegisterCommand(command);
-                                _logger.Info("已注册外部命令: {0} (来自 {1})",
-                                    command.CommandName, Path.GetFileName(assemblyPath));
-                                break; // 找到匹配的命令后退出循环
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.Error("创建命令实例失败 [{0}]: {1}", type.FullName, ex.Message);
-                        }
-                    }
-                }
+                // Load external command assembly
+                LoadCommandFromAssembly(commandConfig);
             }
             catch (Exception ex)
             {
-                _logger.Error("加载命令程序集失败: {0}", ex.Message);
+                _logger.Error("Loading command {0} failed: {1}", commandConfig.CommandName, ex.Message);
             }
+        }
+
+        _logger.Info("Command loading is complete");
+    }
+
+    /// <summary>
+    /// 加载特定程序集中的特定命令
+    /// </summary>
+    /// <param name="config">commandConfig</param>
+    private void LoadCommandFromAssembly(CommandConfig config)
+    {
+        try
+        {
+            // Determine the assembly path
+            var assemblyPath = config.AssemblyPath;
+            if (!Path.IsPathRooted(assemblyPath))
+            {
+                // If not an absolute path, relative to the Commands directory
+                var baseDir = PathManager.GetCommandsDirectoryPath();
+                assemblyPath = Path.Combine(baseDir, assemblyPath);
+            }
+
+            if (!File.Exists(assemblyPath))
+            {
+                _logger.Error("The command assembly does not exist: {0}", assemblyPath);
+                return;
+            }
+
+            // Loading assembly
+            var assembly = Assembly.LoadFrom(assemblyPath);
+
+            // Find the type that implements the IRevitCommand interface
+            foreach (var type in assembly.GetTypes())
+            {
+                if (typeof(IRevitCommand).IsAssignableFrom(type) &&
+                    !type.IsInterface &&
+                    !type.IsAbstract)
+                {
+                    try
+                    {
+                        // Create a command instance
+                        IRevitCommand command;
+
+                        // Check whether the command implements an initializable interface
+                        if (typeof(IRevitCommandInitializable).IsAssignableFrom(type))
+                        {
+                            // Create an instance and initialize it
+                            command = (IRevitCommand)Activator.CreateInstance(type);
+                            ((IRevitCommandInitializable)command).Initialize(_uiApplication);
+                        }
+                        else
+                        {
+                            // Try to find a constructor that accepts UIApplication
+                            var constructor = type.GetConstructor(new[] { typeof(UIApplication) });
+                            if (constructor != null)
+                            {
+                                command = (IRevitCommand)constructor.Invoke(new object[] { _uiApplication });
+                            }
+                            else
+                            {
+                                // Use parameterless constructor
+                                command = (IRevitCommand)Activator.CreateInstance(type);
+                            }
+                        }
+
+                        // Check if the command name matches the configuration
+                        if (command.CommandName == config.CommandName)
+                        {
+                            _commandRegistry.RegisterCommand(command);
+                            _logger.Info("Registered external command: {0} (from {1})",
+                                command.CommandName, Path.GetFileName(assemblyPath));
+                            break; // Exit the loop after finding the matching command
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error("Create command instance failed [{0}]: {1}", type.FullName, ex.Message);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Error("Failed to load the command assembly: {0}", ex.Message);
         }
     }
 }

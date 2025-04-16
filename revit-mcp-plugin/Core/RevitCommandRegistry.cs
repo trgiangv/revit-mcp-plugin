@@ -1,34 +1,29 @@
 ﻿using RevitMCPSDK.API.Interfaces;
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace revit_mcp_plugin.Core
+namespace revit_mcp_plugin.Core;
+
+public class RevitCommandRegistry : ICommandRegistry
 {
-    public class RevitCommandRegistry : ICommandRegistry
+    private readonly Dictionary<string, IRevitCommand> _commands = new Dictionary<string, IRevitCommand>();
+
+    public void RegisterCommand(IRevitCommand command)
     {
-        private readonly Dictionary<string, IRevitCommand> _commands = new Dictionary<string, IRevitCommand>();
+        _commands[command.CommandName] = command;
+    }
 
-        public void RegisterCommand(IRevitCommand command)
-        {
-            _commands[command.CommandName] = command;
-        }
+    public bool TryGetCommand(string commandName, out IRevitCommand command)
+    {
+        return _commands.TryGetValue(commandName, out command);
+    }
 
-        public bool TryGetCommand(string commandName, out IRevitCommand command)
-        {
-            return _commands.TryGetValue(commandName, out command);
-        }
+    public void ClearCommands()
+    {
+        _commands.Clear();
+    }
 
-        public void ClearCommands()
-        {
-            _commands.Clear();
-        }
-
-        public IEnumerable<string> GetRegisteredCommands()
-        {
-            return _commands.Keys;
-        }
+    public IEnumerable<string> GetRegisteredCommands()
+    {
+        return _commands.Keys;
     }
 }

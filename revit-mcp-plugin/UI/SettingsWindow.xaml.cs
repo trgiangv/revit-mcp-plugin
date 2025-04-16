@@ -1,49 +1,35 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
+﻿using System.Windows.Controls;
 
-namespace revit_mcp_plugin.UI
+namespace revit_mcp_plugin.UI;
+
+/// <summary>
+/// Settings.xaml 的交互逻辑
+/// </summary>
+public partial class SettingsWindow
 {
-    /// <summary>
-    /// Settings.xaml 的交互逻辑
-    /// </summary>
-    public partial class SettingsWindow : Window
+    private readonly CommandSetSettingsPage _commandSetPage;
+    private readonly bool _isInitialized = false;
+
+    public SettingsWindow()
     {
-        private CommandSetSettingsPage commandSetPage;
-        private bool isInitialized = false;
+        InitializeComponent();
 
-        public SettingsWindow()
+        // Initialize the page
+        _commandSetPage = new CommandSetSettingsPage();
+
+        // Load the default page
+        ContentFrame.Navigate(_commandSetPage);
+
+        _isInitialized = true;
+    }
+
+    private void NavListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_isInitialized) return;
+
+        if (Equals(NavListBox.SelectedItem, CommandSetItem))
         {
-            InitializeComponent();
-
-            // 初始化页面
-            commandSetPage = new CommandSetSettingsPage();
-
-            // 加载默认页面
-            ContentFrame.Navigate(commandSetPage);
-
-            isInitialized = true;
-        }
-
-        private void NavListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (!isInitialized) return;
-
-            if (NavListBox.SelectedItem == CommandSetItem)
-            {
-                ContentFrame.Navigate(commandSetPage);
-            }
+            ContentFrame.Navigate(_commandSetPage);
         }
     }
 }

@@ -6,9 +6,10 @@
     <UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
     <ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
-	  <Configurations>Debug R20;Debug R21;Debug R22;Debug R24;Debug R25;Release R20;Release R21;Release R22;Release R23;Release R24;Release R25;Debug R23</Configurations>
+  	<Configurations>Debug R20;Debug R21;Debug R22;Debug R23;Debug R24;Debug R25;Debug R26;Release R20;Release R21;Release R22;Release R23;Release R24;Release R25;Release R26</Configurations>
     <PlatformTarget>x64</PlatformTarget>
-	  <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  	<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  	<LangVersion>latest</LangVersion>
   </PropertyGroup>
 
 	<PropertyGroup Condition="$(Configuration.Contains('R20'))">
@@ -41,11 +42,19 @@
 		<TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
 		<OutputPath>bin\$(Configuration.Split(' ')[0])\$(RevitVersion)\</OutputPath>
 	</PropertyGroup>
+	<PropertyGroup Condition="$(Configuration.Contains('R26'))">
+		<RevitVersion>2026</RevitVersion>
+		<TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+		<OutputPath>bin\$(Configuration.Split(' ')[0])\$(RevitVersion)\</OutputPath>
+	</PropertyGroup>
 
    <ItemGroup>
+    <PackageReference Include="HandyControl" Version="3.5.1" />
+    <PackageReference Include="HandyControl.Lang.en" Version="3.5.1" />
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
-		<PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" />
-		<PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" />
+	<PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" />
+	<PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" />
+	<PackageReference Include="Nice3point.Revit.Build.Tasks" Version="3.0.1" />
     <PackageReference Include="RevitMCPSDK" Version="$(RevitVersion).*" />
     <PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
   </ItemGroup>

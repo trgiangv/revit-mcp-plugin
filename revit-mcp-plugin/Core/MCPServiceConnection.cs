@@ -3,37 +3,36 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using System;
 
-namespace revit_mcp_plugin.Core
+namespace revit_mcp_plugin.Core;
+
+[Transaction(TransactionMode.Manual)]
+public class MCPServiceConnection : IExternalCommand
 {
-    [Transaction(TransactionMode.Manual)]
-    public class MCPServiceConnection : IExternalCommand
+    public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
     {
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        try
         {
-            try
-            {
-                // 获取socket服务
-                SocketService service = SocketService.Instance;
+            // 获取socket服务
+            var service = SocketService.Instance;
 
-                if (service.IsRunning)
-                {
-                    service.Stop();
-                    TaskDialog.Show("revitMCP", "Close Server");
-                }
-                else
-                {
-                    service.Initialize(commandData.Application);
-                    service.Start();
-                    TaskDialog.Show("revitMCP", "Open Server");
-                }
-
-                return Result.Succeeded;
-            }
-            catch (Exception ex)
+            if (service.IsRunning)
             {
-                message = ex.Message;
-                return Result.Failed;
+                service.Stop();
+                TaskDialog.Show("revitMCP", "Close Server");
             }
+            else
+            {
+                service.Initialize(commandData.Application);
+                service.Start();
+                TaskDialog.Show("revitMCP", "Open Server");
+            }
+
+            return Result.Succeeded;
+        }
+        catch (Exception ex)
+        {
+            message = ex.Message;
+            return Result.Failed;
         }
     }
 }
